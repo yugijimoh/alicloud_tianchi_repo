@@ -1,10 +1,16 @@
 import hashlib
 from urllib import parse, request
 import logging
-
+from pyspark import SparkContext
+logger = logging.getLogger()
+try:
+    sc.stop()
+except Exception as e:
+    logger.warning("sc.stop executed, no sc found.")
 
 logger = logging.getLogger()
-res_dict = {}
+error_spans = {}  # {traceid:[span1,span2...spann],}
+res_dict = {}  # {traceid:md5,}
 
 """
 several things that run checksum need to do.
@@ -23,9 +29,9 @@ several things that run checksum need to do.
 """
 
 
-def get_md5(traceid):
+def get_md5(span):
     m = hashlib.md5()
-    m.update(traceid)
+    m.update(span)
     return m.hexdigest()
 
 
@@ -39,4 +45,24 @@ def send_checksum():
 
 
 def run_checksum():
+    for trace_id, span in error_spans:
+        md5_value = get_md5(span)
+        res_dict[trace_id] = md5_value
+
+
+def update_error_spans(new_error_dict):
+    for trace_id, span in new_error_dict:
+        if error_spans[trace_id]:
+            error_spans[trace_id].extend(span)
+        else:
+            error_spans[trace_id] = span
+
+
+def sort_incoming_spans(spans):
+    """
+    :param spans: need to be transformed
+    rdd = sc.parallelize(spans)
+    rdd.sortBy(lambda x: x[1])
+    :return:
+    """
     pass
