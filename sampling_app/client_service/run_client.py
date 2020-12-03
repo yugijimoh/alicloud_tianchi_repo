@@ -1,5 +1,6 @@
 from pyspark import SparkContext
-import os, shutil
+
+import os, shutil,json
 from urllib import request, parse
 # process data streams in multiple threads
 import logging
@@ -30,15 +31,11 @@ current_batch [batch_num,{trace span data}]
 
 
 def has_errors(tags):
-    for i in tags:
-        if 'http.status_code' in i.lower():
-            if '200' in i.lower():
-                continue
+    if 'error=1' in tags.lower():
+        return True
+    elif 'http.status_code' in tags.lower():
+        if '200' not in tags.lower():
             return True
-        elif 'error=1' in i.lower():
-            return True
-        else:
-            continue
     return False
 
 
@@ -82,7 +79,7 @@ def get_data_path(port):
 
 def notify_finish():
     finish_url = "http://localhost:8002/ready4checksum"
-    req = request.Request(url=finish_url,method='GET', timeout=3600)
+    req = request.Request(url=finish_url,method='GET')
     logger.info("Ready to do checksum")
     resp = request.urlopen(req)
     logger.info(resp)
@@ -100,3 +97,12 @@ def run_client(port):
             break
 
     return "getting data from : "
+
+def send_error_traces():
+    target_url = "http://localhost:8002/senderrortrace"
+    data={"traces":[{"a":1,"b":2}]}
+    data=json.dumps(data).encode("utf-8")
+    req = request.Request(url=target_url, method='POST', data=data)
+    logger.info("sending error traces")
+    resp = request.urlopen(req)
+    logger.info(resp)

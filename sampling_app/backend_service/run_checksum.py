@@ -1,6 +1,6 @@
 import hashlib
 from urllib import parse, request
-import logging
+import logging,json
 from pyspark import SparkContext
 logger = logging.getLogger()
 try:
@@ -26,7 +26,15 @@ several things that run checksum need to do.
 12. receive end signal from front end, sort data
 13. calculate checksum for each data in result dict
 14. send post back.
+
+
+data structure:
+receive from pod0 &pod1
+
+error_trace_id_list{id1,id2...}
+error_trace[trace_id:span[]]
 """
+
 
 
 def get_md5(span):
@@ -38,7 +46,7 @@ def get_md5(span):
 def send_checksum():
     data = bytes(parse.urlencode(dict), encoding='utf8')
     finish_url = "http://localhost:8080/api/finished"
-    req = request.Request(url=finish_url, data=data, method='POST',timeout=3600)
+    req = request.Request(url=finish_url, data=data, method='POST')
     logger.info("Ready to send result")
     resp = request.urlopen(req)
     logger.warning(resp)
@@ -65,4 +73,14 @@ def sort_incoming_spans(spans):
     rdd.sortBy(lambda x: x[1])
     :return:
     """
+    pass
+
+def get_error_traces_from_client(data):
+    """
+    get the traces from a post
+    error_trace[trace_id:span[]]
+    :return: nothing
+    """
+    logger.info(type(data))
+    logger.info(data)
     pass
