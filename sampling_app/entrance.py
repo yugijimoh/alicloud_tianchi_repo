@@ -75,6 +75,9 @@ def senderrortrace():
 
 @app.route('/senderror')
 def senderror():
+    """
+    this method is just to simulate client send trace to backend.
+    """
     send_error_traces()
     return 'notified'
 
