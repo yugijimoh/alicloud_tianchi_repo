@@ -1,9 +1,10 @@
 from flask import Flask
 from flask import request as req
-from client_service.run_client import run_client,send_error_traces
-from backend_service.run_checksum import run_checksum,get_error_traces_from_client
-import logging,os,json
+from client_service.run_client import run_client, send_error_traces
+from backend_service.run_checksum import run_checksum, reduce_sort_spans, update_error_dict_with_trace_from_client
 from logging.config import dictConfig
+import os
+import json
 app = Flask(__name__)
 self_port = os.environ.get("SERVER_PORT")
 dictConfig({
@@ -59,6 +60,7 @@ def startapp():
 
 @app.route('/ready4checksum')
 def ready4checksum():
+    reduce_sort_spans()
     run_checksum()
     return 'notified'
 
@@ -69,7 +71,7 @@ def senderrortrace():
     app.logger.info("type of trace is: {}".format(type(trace)))
     app.logger.info(trace)
     jtrace = json.loads(trace)
-    get_error_traces_from_client(jtrace)
+    update_error_dict_with_trace_from_client(jtrace)
     return 'notified'
 
 
@@ -80,6 +82,7 @@ def senderror():
     """
     send_error_traces()
     return 'notified'
+
 
 if __name__ == '__main__':
     app.run(debug=True,port=port)

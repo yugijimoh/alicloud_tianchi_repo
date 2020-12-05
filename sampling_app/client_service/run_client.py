@@ -100,7 +100,7 @@ def run_client(port):
 
 def send_error_traces():
     target_url = "http://localhost:8002/senderrortrace"
-    data={"traces":[{"a":1,"b":2}]}
+    data={"a":[1,2,3],"b":[4,5]}
     data=json.dumps(data).encode("utf-8")
     req = request.Request(url=target_url, method='POST', data=data)
     logger.info("sending error traces")
