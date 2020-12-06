@@ -1,7 +1,8 @@
 #studentExample 例子 练习
 def map_func(x):
     s = x.split()
-    return (s[0], [int(s[1]),int(s[2]),int(s[3])]) #返回为+（key,vaklue+）格式&#xff0c;其中key:x[0],value:x[1]且为有三个元素的列表
+    return s[0], [int(s[1]), int(s[2]), int(s[3])]  # 返回为+（key,value+）格式&#xff0c;其中key:x[0],value:x[1]且为有三个元素的列表
+
     #return (s[0],[int(s[1],s[2],s[3])])   #注意此用法不合法
 
 def has100(x):
