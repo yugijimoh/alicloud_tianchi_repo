@@ -1,13 +1,29 @@
 from pyspark import SparkContext
 
-import os, shutil,json
-from urllib import request, parse
+import os
+import socket
+
+import json
+from urllib import request
 # process data streams in multiple threads
 import logging
 logger = logging.getLogger()
 batch_size = 20000
 self_port = os.environ.get("SERVER_PORT")  # for communication between dockers
+try:
+    #create a stream socket (TCP)
+    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+except (socket.error, msg):
+    logger.error("failed to create socket. error code: {}".format(str(msg)))
+logger.info("Socket created")
+tcp_host = "localhost"
+tcp_port = 12345
+try:
+    addr = socket.gethostbyname(tcp_host)
+except socket.gaierror:
+    logger.error('Hostname could not be resolved.')
 
+s.connect((addr,tcp_port))
 """
 several things that run client need to do.
 1. identify the data source port
@@ -86,17 +102,20 @@ def notify_finish():
 
 
 def run_client(port):
-
     url_path = get_data_path(port)
+    logger.info("The url path is {}".format(url_path))
     if url_path is None:
         return "No data obtained."
     req_data = request.urlopen(url_path)
+    logger.info("connection ready, reading data")
     while True:
-        data = req_data.readline()
+        data = req_data.read()
+
         if len(data) < 0:
             break
 
-    return "getting data from : "
+    return "getting data from : {}".format(url_path)
+
 
 def send_error_traces():
     target_url = "http://localhost:8002/senderrortrace"
