@@ -1,5 +1,7 @@
 from pyspark import SparkContext
-import os, shutil
+import os
+import socket
+import json
 from urllib import request, parse
 
 # process data streams in multiple threads
@@ -125,15 +127,6 @@ def notify_finish():
 
 
 def run_client(port):
-    # url_path = get_data_path(port)
-    # if url_path is None:
-    #     return "No data obtained."
-    # req_data = request.urlopen(url_path)
-    # while True:
-    #     data = req_data.readline()
-    #
-    #     if len(data) < 0:
-    #         break
     sc = SparkContext(appName='Tianchi')  # 命名
     lines = sc.textFile("data.txt").map(lambda x: map_func(x)).cache()  # 导入数据且保持在内存中&#xff0c;其中cache():数据保持在内存中
     print(lines.collect())
@@ -144,6 +137,8 @@ def run_client(port):
 
 run_client(12)
 
+
+# def run_client(port):
 #    url_path = get_data_path(port)
 #    logger.info("The url path is {}".format(url_path))
 #    if url_path is None:
@@ -159,13 +154,11 @@ run_client(12)
 #    return "getting data from : {}".format(url_path)
 #
 #
-#def send_error_traces():
-#    target_url = "http://localhost:8002/senderrortrace"
-#    data={"a":[1,2,3],"b":[4,5]}
-#    data=json.dumps(data).encode("utf-8")
-#    req = request.Request(url=target_url, method='POST', data=data)
-#    logger.info("sending error traces")
-#    resp = request.urlopen(req)
-#    logger.info(resp)
-#>>>>>>> master
-#
+def send_error_traces():
+    target_url = "http://localhost:8002/senderrortrace"
+    data={"a":[1,2,3],"b":[4,5]}
+    data=json.dumps(data).encode("utf-8")
+    req = request.Request(url=target_url, method='POST', data=data)
+    logger.info("sending error traces")
+    resp = request.urlopen(req)
+    logger.info(resp)
