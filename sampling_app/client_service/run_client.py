@@ -100,15 +100,15 @@ def has_errors(tags):
 
 
 def is_under_trace(span,traceid):
-    s = span.split("|")
     try:
-        if s[0] == traceid:
+        if span[0:span.index("|")] == traceid:
             return True
         else:
             return False
     except Exception as e:
         return False
     pass
+
 
 def find_records_with_trace_list(traceid_list):
     """
@@ -184,21 +184,16 @@ def run_client(port):
             logger.info("Type of curr_rdd is {}".format(type(curr_rdd)))
             logger.info("size of curr_rdd: {}".format(curr_rdd.count()))
 
-            # input_stream = ssc.queueStream(curr_rdd)
-            # logger.info("Type of input stream is {}".format(type(input_stream)))
-            # logger.info("size of input_stream".format(input_stream.count().pprint()))
-            # mapped_stream = curr_rdd.map(lambda x: map_func(x))
-            # logger.info("if I collect curr_rdd: {}".format(curr_rdd.collect()))
             mapped_stream = curr_rdd.map(lambda x : x.split("|"))
             # mapped_stream.saveAsTextFile('rdd.txt')
-            # logger.info(mapped_stream.collect())
+            logger.info(curr_rdd.collect()[0])
             logger.info("Type of mapped stream is {}".format(type(mapped_stream)))
             logger.info("Size of mapped stream is {}".format(mapped_stream.count()))
             # find out spans that with errors
             error_stream = mapped_stream.filter(lambda x: has_errors(x[8]))
             logger.info("error_stream: {}".format(error_stream.collect()))
             # test = mapped_stream.lookup("5d91fe3c99027374")
-            test = mapped_stream.filter(lambda x: is_under_trace(x[0],"5d91fe3c99027374"))
+            test = curr_rdd.filter(lambda x: is_under_trace(x,"5d91fe3c99027374"))
             logger.info("test: {}".format(test.collect()))
             keylist_stream = error_stream.keys()
             logger.info("keylist stream: {}".format(keylist_stream.collect()))
