@@ -1,4 +1,5 @@
 from pyspark import SparkContext
+from pyspark.streaming import StreamingContext
 import os
 import socket
 import json
@@ -9,21 +10,38 @@ import logging
 
 logger = logging.getLogger()
 batch_size = 20000
+sc = SparkContext(appName='Tianchi')
+#ssc = StreamingContext(sc,2)
 self_port = os.environ.get("SERVER_PORT")  # for communication between dockers
-try:
-    #create a stream socket (TCP)
-    s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-except (socket.error, msg):
-    logger.error("failed to create socket. error code: {}".format(str(msg)))
-logger.info("Socket created")
-tcp_host = "localhost"
-tcp_port = 12345
-try:
-    addr = socket.gethostbyname(tcp_host)
-except socket.gaierror:
-    logger.error('Hostname could not be resolved.')
+# try:
+#     #create a stream socket (TCP)
+#     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+# except (socket.error, msg):
+#     logger.error("failed to create socket. error code: {}".format(str(msg)))
+# logger.info("Socket created")
+# tcp_host = "127.0.0.1"
+# tcp_port = 4567
+# try:
+#     addr = socket.gethostbyname(tcp_host)
+#     pass
+# except socket.gaierror:
+#     logger.error('Hostname could not be resolved.')
+#
+# s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#
+# s.settimeout(1000)
+# try:
+#     s.bind((tcp_host, tcp_port))
+# except OSError as msg:
+#     logger.error("socket.bind() failed - {}".format(msg))
+#     s.close()
+#     s = None
+#     logger.error("TCP server socket closed")
+#     raise ConnectionError
+# s.bind((tcp_host, tcp_port))
 
-s.connect((addr,tcp_port))
+
+
 """
 several things that run client need to do.
 1. identify the data source port
@@ -51,6 +69,7 @@ current_batch [batch_num,{trace span data}]
 #     return traceid
 
 def map_func(x):
+    logger.info("################################## " +str(x)+ " ##########################################")
     s = x.split('|')
     """
     traceId | startTime | spanId | parentSpanId | duration | serviceName | spanName | host | tags
@@ -64,29 +83,32 @@ def map_func(x):
     host：机器标识，比如ip，机器名
     tags: 链路信息中tag信息，存在多个tag的key和value信息。格式为key1=val1&key2=val2&key3=val3 比如 http.status_code=200&error=1
     """
-    has_errors(s[8])
+    return (s[0], str(s[1]), s[2], s[3], str(s[4]), s[5], s[6], s[7], s[8])
+
     return s
 
 
 def has_errors(tags):
     if 'error=1' in tags.lower():
-
-        print(tags)
+        logger.info(tags)
         return True
     elif 'http.status_code' in tags.lower():
         if '200' not in tags.lower():
-            print(tags)
+            logger.info(tags)
             return True
     return False
 
 
-def find_error():
-    """
-    Find error traces in current batch and previous batch
-    :return: error_trace list: {[trace id,{trace span data}]}
-    """
+def is_under_trace(span,traceid):
+    s = span.split("|")
+    try:
+        if s[0] == traceid:
+            return True
+        else:
+            return False
+    except Exception as e:
+        return False
     pass
-
 
 def find_records_with_trace_list(traceid_list):
     """
@@ -126,38 +148,83 @@ def notify_finish():
     logger.info(resp)
 
 
-def run_client(port):
-    sc = SparkContext(appName='Tianchi')  # 命名
-    lines = sc.textFile("data.txt").map(lambda x: map_func(x)).cache()  # 导入数据且保持在内存中&#xff0c;其中cache():数据保持在内存中
-    print(lines.collect())
-    # data=flask
-    # get_traceid(data)
-    return "getting data from : "
-
-
-run_client(12)
-
-
 # def run_client(port):
-#    url_path = get_data_path(port)
-#    logger.info("The url path is {}".format(url_path))
-#    if url_path is None:
-#        return "No data obtained."
-#    req_data = request.urlopen(url_path)
-#    logger.info("connection ready, reading data")
-#    while True:
-#        data = req_data.read()
-#
-#        if len(data) < 0:
-#            break
-#
-#    return "getting data from : {}".format(url_path)
+#     sc = SparkContext(appName='Tianchi')  # 命名
+#     lines = sc.textFile("data.txt").map(lambda x: map_func(x)).cache()  # 导入数据且保持在内存中&#xff0c;其中cache():数据保持在内存中
+#     print(lines.collect())
+#     # data=flask
+#     # get_traceid(data)
+#     return "getting data from : "
 #
 #
+# run_client(12)
+
+
+def run_client(port):
+    url_path = get_data_path(port)
+    logger.info("The url path is {}".format(url_path))
+    if url_path is None:
+        return "No data obtained."
+    req_data = request.urlopen(url_path)
+    logger.info("connection ready, reading data")
+    count = 0
+    curr_list = []
+    curr_list = []
+    batch_num = 0
+    while True:
+        count += 1
+        data = req_data.readline().decode()
+        curr_list.append(data)
+
+        if count % batch_size == 0:
+            batch_num += 1
+            logger.info("size of curr_rdd: {}".format(len(curr_list)))
+            logger.info("type {}, content {}".format(type(curr_list[0]),curr_list[0]))
+            curr_rdd = sc.parallelize(curr_list)
+            logger.info("Type of curr_rdd is {}".format(type(curr_rdd)))
+            logger.info("size of curr_rdd: {}".format(curr_rdd.count()))
+
+            # input_stream = ssc.queueStream(curr_rdd)
+            # logger.info("Type of input stream is {}".format(type(input_stream)))
+            # logger.info("size of input_stream".format(input_stream.count().pprint()))
+            # mapped_stream = curr_rdd.map(lambda x: map_func(x))
+            # logger.info("if I collect curr_rdd: {}".format(curr_rdd.collect()))
+            mapped_stream = curr_rdd.map(lambda x : x.split("|"))
+            # mapped_stream.saveAsTextFile('rdd.txt')
+            # logger.info(mapped_stream.collect())
+            logger.info("Type of mapped stream is {}".format(type(mapped_stream)))
+            logger.info("Size of mapped stream is {}".format(mapped_stream.count()))
+            # find out spans that with errors
+            error_stream = mapped_stream.filter(lambda x: has_errors(x[8]))
+            logger.info("error_stream: {}".format(error_stream.collect()))
+            # test = mapped_stream.lookup("5d91fe3c99027374")
+            test = mapped_stream.filter(lambda x: is_under_trace(x[0],"5d91fe3c99027374"))
+            logger.info("test: {}".format(test.collect()))
+            keylist_stream = error_stream.keys()
+            logger.info("keylist stream: {}".format(keylist_stream.collect()))
+            # find out relative spans with same trace id
+
+
+            break
+        if len(data) <= 0:
+            break
+
+    return "getting data from : {}".format(url_path)
+
+
 def send_error_traces():
     target_url = "http://localhost:8002/senderrortrace"
     data={"a":[1,2,3],"b":[4,5]}
     data=json.dumps(data).encode("utf-8")
+    req = request.Request(url=target_url, method='POST', data=data)
+    logger.info("sending error traces")
+    resp = request.urlopen(req)
+    logger.info(resp)
+
+def client_crosscheck_with_backend():
+    target_url = "http://localhost:8002/crosscheck"
+    data = {"a": [1, 2, 3], "b": [4, 5]}
+    data = json.dumps(data).encode("utf-8")
     req = request.Request(url=target_url, method='POST', data=data)
     logger.info("sending error traces")
     resp = request.urlopen(req)

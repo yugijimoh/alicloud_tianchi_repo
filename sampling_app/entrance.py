@@ -96,13 +96,16 @@ def simulate_download_trace1():
             while True:
                 # data = targetfile.read(20 * 1024 * 1024)  # 每次读取20M
                 data = targetfile.readline()
-                if not data:
+                if not data or len(data) < 1:
                     break
                 yield data
     rp = Response(send_file(), content_type='application/octet-stream')
     rp.headers["Content-disposition"] = 'attachment; filename=%s' % 'trace1.data'
     return rp
 
+@app.route('/client_crosscheck_with_backend')
+def crosscheck(your_port,data):
+    crosscheck(your_port,data)
 
 if __name__ == '__main__':
     app.run(debug=True,port=port)

@@ -90,7 +90,7 @@ def sort_and_checksum_spans():
         except Exception as e:
             logger.error(e)
         finally:
-            continue
+            pass
 
 
 def update_error_dict_with_trace_from_client(data):
@@ -112,4 +112,7 @@ def update_error_dict_with_trace_from_client(data):
             else:
                 error_spans[k] = data.get(k)
     logger.info(error_spans)
+    pass
+
+def crosscheck(source_port,data):
     pass

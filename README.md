@@ -22,3 +22,17 @@
 
 * get_md5(`span_string`)<br>
 `span_string`: span list data of a trace id, transformed into string with delimiter `\n`
+
+
+## Docker Usages
+### Build Docker image:
+    cd ./docker
+    docker build -t <tag>:<version> <path>
+    docker build -t docker-flask:0.1 .
+### Run Docker image:
+    docker run --rm -it  --net host -e "SERVER_PORT=8000" --name "clientprocess1" -d docker-flask:0.1
+    docker run --rm -it  --net host -e "SERVER_PORT=8001" --name "clientprocess2" -d docker-flask:0.1
+    docker run --rm -it  --net host -e "SERVER_PORT=8002" --name "backendprocess" -d docker-flask:0.1
+### Run verification program:
+    docker pull registry.cn-hangzhou.aliyuncs.com/cloud_native_match/scoring:0.1
+    docker run --rm --net host -e "SERVER_PORT=8081" --name scoring -d scoring:0.1    

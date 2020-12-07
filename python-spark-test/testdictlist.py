@@ -22,3 +22,17 @@ spans=[
 
 spans.sort(key=lambda x: x.split("|")[1])
 print(spans)
+
+def has_errors(tags):
+    if 'error=1' in tags.lower():
+        print("error=1")
+        return True
+    elif 'http.status_code' in tags.lower():
+        if '200' not in tags.lower():
+            print(" not 200")
+            return True
+    return False
+
+print(has_errors("http.status_code=200&http.url=http://tracing.console.aliyun.com/getOrder&component=java-web-servlet&span.kind=server&http.method=GET"))
+
+print(has_errors("http.status_code=200&component=java-spring-rest-template&span.kind=client&http.url=http://tracing.console.aliyun.com/createOrder?id=4&peer.port=9002&http.method=GET&error=1"))

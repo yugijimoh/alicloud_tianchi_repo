@@ -38,9 +38,10 @@ except:
 from pyspark import SparkContext   #导入模块
 sc=SparkContext(appName='Student')  #命名
 lines=sc.textFile("student.txt").map(lambda x:map_func(x)).cache() #导入数据且保持在内存中&#xff0c;其中cache():数据保持在内存中
+print(type(lines))
 count=lines.count()  #对RDD中的数据个数进行计数，其中RDD一行为一个数据集
 
-
+print(lines.filter(lambda x: has100(x[1])))
 #RDD'转换'运算 +（筛选 关键字filter+）
 whohas100 = lines.filter(lambda x: has100(x[1])).collect() #注意:处理的是value列表，也就是x[1]
 whois0 = lines.filter(lambda x: allis0(x[1])).collect()
