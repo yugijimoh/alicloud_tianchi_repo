@@ -4,7 +4,7 @@ import os
 import socket
 import json
 from urllib import request, parse
-
+import global_var
 # process data streams in multiple threads
 import logging
 
@@ -201,6 +201,7 @@ def run_client(port):
             # send error traces to backend for further process
             send_error_traces_to_backend(error_span_dict)
             prev_rdd = mapped_stream
+            global_var.rdd_bucket[batch_num] = mapped_stream
             curr_list = []
             logger.info("Processed batch num: {}".format(batch_num))
             # if batch_num == 2:
