@@ -142,7 +142,7 @@ def get_data_path(port):
 
 def notify_finish():
     finish_url = "http://localhost:8002/ready4checksum"
-    req = request.Request(url=finish_url,method='GET')
+    req = request.Request(url=finish_url)
     logger.info("Ready to do checksum")
     resp = request.urlopen(req)
     logger.info(resp)
@@ -169,13 +169,13 @@ def run_client(port):
     logger.info("connection ready, reading data")
     count = 0
     curr_list = []
-    curr_list = []
     batch_num = 0
+    curr_rdd = ""
+    prev_rdd = ""
     while True:
         count += 1
         data = req_data.readline().decode()
         curr_list.append(data)
-
         if count % batch_size == 0:
             batch_num += 1
             logger.info("size of curr_rdd: {}".format(len(curr_list)))
@@ -183,38 +183,44 @@ def run_client(port):
             curr_rdd = sc.parallelize(curr_list)
             logger.info("Type of curr_rdd is {}".format(type(curr_rdd)))
             logger.info("size of curr_rdd: {}".format(curr_rdd.count()))
-
-            mapped_stream = curr_rdd.map(lambda x : x.split("|"))
-            # mapped_stream.saveAsTextFile('rdd.txt')
-            logger.info(curr_rdd.collect()[0])
-            logger.info("Type of mapped stream is {}".format(type(mapped_stream)))
+            mapped_stream = curr_rdd.map(lambda x: x.split("|"))
+            if not prev_rdd == "":
+                mapped_stream.union(prev_rdd)
             logger.info("Size of mapped stream is {}".format(mapped_stream.count()))
             # find out spans that with errors
             error_stream = mapped_stream.filter(lambda x: has_errors(x[8]))
-            logger.info("error_stream: {}".format(error_stream.collect()))
-            # test = mapped_stream.lookup("5d91fe3c99027374")
-            test = curr_rdd.filter(lambda x: is_under_trace(x,"5d91fe3c99027374"))
-            logger.info("test: {}".format(test.collect()))
-            keylist_stream = error_stream.keys()
-            logger.info("keylist stream: {}".format(keylist_stream.collect()))
+            keylist = error_stream.keys().collect()
+            logger.info("keylist stream: {}".format(keylist))
+            # logger.info("error_stream: {}".format(error_stream.collect()))
+            error_span_dict = {}
+            for key in keylist:
+                spans = curr_rdd.filter(lambda x: is_under_trace(x, key))
+                error_span_dict[key] = spans.collect()
+            # logger.info("what's in the error_span_dict: {}".format(error_span_dict))
             # find out relative spans with same trace id
-
-
-            break
+            # send error traces to backend for further process
+            send_error_traces_to_backend(error_span_dict)
+            prev_rdd = mapped_stream
+            curr_list = []
+            logger.info("Processed batch num: {}".format(batch_num))
+            # if batch_num == 2:
+            #
+            #     break
         if len(data) <= 0:
             break
-
+    notify_finish()
     return "getting data from : {}".format(url_path)
 
 
-def send_error_traces():
+def send_error_traces_to_backend(data):
     target_url = "http://localhost:8002/senderrortrace"
-    data={"a":[1,2,3],"b":[4,5]}
+    # data={"a":[1,2,3],"b":[4,5]}
     data=json.dumps(data).encode("utf-8")
     req = request.Request(url=target_url, method='POST', data=data)
     logger.info("sending error traces")
     resp = request.urlopen(req)
     logger.info(resp)
+
 
 def client_crosscheck_with_backend():
     target_url = "http://localhost:8002/crosscheck"

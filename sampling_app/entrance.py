@@ -1,8 +1,9 @@
 from flask import Flask, send_file, Response
 from flask import request as req
-from client_service.run_client import run_client, send_error_traces
+from client_service.run_client import run_client, send_error_traces_to_backend
 from backend_service.run_checksum import sort_and_checksum_spans, send_checksum, update_error_dict_with_trace_from_client
 from logging.config import dictConfig
+import global_var
 import os
 import json
 app = Flask(__name__)
@@ -25,7 +26,6 @@ port = 8002
 print("self_port is {}".format(self_port))
 if self_port and len(self_port) == 4:
     port = self_port
-
 
 @app.route('/')
 def hello_world():
@@ -60,16 +60,17 @@ def startapp():
 
 @app.route('/ready4checksum')
 def ready4checksum():
-    sort_and_checksum_spans()
-    send_checksum()
+    global_var.ready_for_checksum_cnt += 1
+    if global_var.ready_for_checksum_cnt == 2:
+        sort_and_checksum_spans()
+        # send_checksum()
     return 'notified'
 
 
 @app.route('/senderrortrace',methods=['POST'])
 def senderrortrace():
     trace = req.get_data()
-    app.logger.info("type of trace is: {}".format(type(trace)))
-    app.logger.info(trace)
+    app.logger.info("len of trace is: {}".format(len(trace)))
     jtrace = json.loads(trace)
     update_error_dict_with_trace_from_client(jtrace)
     return 'notified'
@@ -80,7 +81,7 @@ def senderror():
     """
     this method is just to simulate client send trace to backend.
     """
-    send_error_traces()
+    send_error_traces_to_backend()
     return 'notified'
 
 
@@ -92,6 +93,24 @@ def simulate_download_trace1():
     app.logger.info("Ready to send trace1.data")
     def send_file():
         store_path = "/Users/DL/Documents/alicloud/trace1.data"
+        with open(store_path, 'rb') as targetfile:
+            while True:
+                # data = targetfile.read(20 * 1024 * 1024)  # 每次读取20M
+                data = targetfile.readline()
+                if not data or len(data) < 1:
+                    break
+                yield data
+    rp = Response(send_file(), content_type='application/octet-stream')
+    rp.headers["Content-disposition"] = 'attachment; filename=%s' % 'trace1.data'
+    return rp
+@app.route('/trace2.data')
+def simulate_download_trace2():
+    """
+    this method is just to simulate client send trace to backend.
+    """
+    app.logger.info("Ready to send trace1.data")
+    def send_file():
+        store_path = "/Users/DL/Documents/alicloud/trace2.data"
         with open(store_path, 'rb') as targetfile:
             while True:
                 # data = targetfile.read(20 * 1024 * 1024)  # 每次读取20M

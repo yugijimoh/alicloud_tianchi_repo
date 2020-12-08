@@ -85,12 +85,11 @@ def sort_and_checksum_spans():
             # split the span value with '|' and sort by timestamp, the second column
             spans.sort(key=lambda x: x.split("|")[1])
             # transform list into string and use \n" as the delimiter
-            md5_value = get_md5('\n'.join(spans))
+            md5_value = get_md5(''.join(spans).encode())
             res_dict[i] = md5_value
         except Exception as e:
             logger.error(e)
-        finally:
-            pass
+    logger.info(res_dict)
 
 
 def update_error_dict_with_trace_from_client(data):
@@ -100,7 +99,7 @@ def update_error_dict_with_trace_from_client(data):
     :return: nothing
     """
     logger.info("Obtained error trace from client, merging..")
-    if type(data) is dict and len(data)>0:
+    if type(data) is dict and len(data) > 0:
         for k in data.keys():
             es_v = error_spans.get(k)
             """
@@ -109,9 +108,11 @@ def update_error_dict_with_trace_from_client(data):
             """
             if es_v is not None:
                 es_v.extend(data.get(k))
+                logger.info("Trace {} updated.".format(k))
             else:
                 error_spans[k] = data.get(k)
-    logger.info(error_spans)
+                logger.info("Trace {} added.".format(k))
+    # logger.info(error_spans)
     pass
 
 def crosscheck(source_port,data):
