@@ -1,3 +1,6 @@
+from pyspark import SparkContext, sql
+from pyspark.sql import SQLContext
+from pyspark.sql.types import *
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 import os
@@ -11,7 +14,8 @@ import logging
 logger = logging.getLogger()
 batch_size = 20000
 sc = SparkContext(appName='Tianchi')
-#ssc = StreamingContext(sc,2)
+# ssc = StreamingContext(sc,2)
+sqlContext = sql.SQLContext(sc)
 self_port = os.environ.get("SERVER_PORT")  # for communication between dockers
 # try:
 #     #create a stream socket (TCP)
@@ -41,7 +45,6 @@ self_port = os.environ.get("SERVER_PORT")  # for communication between dockers
 # s.bind((tcp_host, tcp_port))
 
 
-
 """
 several things that run client need to do.
 1. identify the data source port
@@ -69,7 +72,7 @@ current_batch [batch_num,{trace span data}]
 #     return traceid
 
 def map_func(x):
-    logger.info("################################## " +str(x)+ " ##########################################")
+    logger.info("################################## " + str(x) + " ##########################################")
     s = x.split('|')
     """
     traceId | startTime | spanId | parentSpanId | duration | serviceName | spanName | host | tags
@@ -99,7 +102,7 @@ def has_errors(tags):
     return False
 
 
-def is_under_trace(span,traceid):
+def is_under_trace(span, traceid):
     try:
         if span[0:span.index("|")] == traceid:
             return True
@@ -179,29 +182,38 @@ def run_client(port):
         if count % batch_size == 0:
             batch_num += 1
             logger.info("size of curr_rdd: {}".format(len(curr_list)))
-            logger.info("type {}, content {}".format(type(curr_list[0]),curr_list[0]))
+            logger.info("type {}, content {}".format(type(curr_list[0]), curr_list[0]))
             curr_rdd = sc.parallelize(curr_list)
             logger.info("Type of curr_rdd is {}".format(type(curr_rdd)))
             logger.info("size of curr_rdd: {}".format(curr_rdd.count()))
             mapped_stream = curr_rdd.map(lambda x: x.split("|"))
+            df_span = mapped_stream.toDF(
+                ["traceId", "startTime", "spanId", "parentSpanId", "duration", "serviceName", "spanName", "host",
+                 "tags"])
+            # logger.info("Content of Span dataFrame is {}".format(df_span.show()))
+            # 合并前后两个
             if not prev_rdd == "":
-                mapped_stream.union(prev_rdd)
+                df_span.union(prev_rdd)
             logger.info("Size of mapped stream is {}".format(mapped_stream.count()))
             # find out spans that with errors
-            error_stream = mapped_stream.filter(lambda x: has_errors(x[8]))
-            keylist = error_stream.keys().collect()
-            logger.info("keylist stream: {}".format(keylist))
+            error_df = df_span.filter(df_span.tags.rlike('error=1+') | df_span.tags.rlike('http.status_code=[4-5]\\d+'))
+            # status_df = df_span.filter(~df_span.tags.like("%http.status_code=200%")).filter(df_span.tags.like("%error=1%"))
+            # filtered_df = error_df.union(status_df)
+            # keylist = [traceId1, traceId2, traceId3, traceId4]
+            keylist = error_df.select(error_df.traceId).distinct()
+            logger.info("keylist stream: {}".format(keylist.show()))
             # logger.info("error_stream: {}".format(error_stream.collect()))
             error_span_dict = {}
-            for key in keylist:
-                spans = curr_rdd.filter(lambda x: is_under_trace(x, key))
-                error_span_dict[key] = spans.collect()
+            # 完整一行记录, 还原回|||span, 然后组合成字典
+            # for key in keylist:
+            #     spans = curr_rdd.filter(lambda x: is_under_trace(x, key))
+            #     error_span_dict[key] = spans.collect()
             # logger.info("what's in the error_span_dict: {}".format(error_span_dict))
             # find out relative spans with same trace id
             # send error traces to backend for further process
-            send_error_traces_to_backend(error_span_dict)
-            prev_rdd = mapped_stream
-            curr_list = []
+            # send_error_traces_to_backend(error_span_dict)
+            prev_rdd = df_span
+            # curr_list = []
             logger.info("Processed batch num: {}".format(batch_num))
             # if batch_num == 2:
             #
@@ -215,7 +227,7 @@ def run_client(port):
 def send_error_traces_to_backend(data):
     target_url = "http://localhost:8002/senderrortrace"
     # data={"a":[1,2,3],"b":[4,5]}
-    data=json.dumps(data).encode("utf-8")
+    data = json.dumps(data).encode("utf-8")
     req = request.Request(url=target_url, method='POST', data=data)
     logger.info("sending error traces")
     resp = request.urlopen(req)

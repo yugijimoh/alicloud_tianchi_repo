@@ -92,7 +92,7 @@ def simulate_download_trace1():
     """
     app.logger.info("Ready to send trace1.data")
     def send_file():
-        store_path = "/Users/DL/Documents/alicloud/trace1.data"
+        store_path = "trace1.data"
         with open(store_path, 'rb') as targetfile:
             while True:
                 # data = targetfile.read(20 * 1024 * 1024)  # 每次读取20M
@@ -110,7 +110,7 @@ def simulate_download_trace2():
     """
     app.logger.info("Ready to send trace1.data")
     def send_file():
-        store_path = "/Users/DL/Documents/alicloud/trace2.data"
+        store_path = "trace2.data"
         with open(store_path, 'rb') as targetfile:
             while True:
                 # data = targetfile.read(20 * 1024 * 1024)  # 每次读取20M
