@@ -1,10 +1,5 @@
 from pyspark import SparkContext, sql
-from pyspark.sql import SQLContext
-from pyspark.sql.types import *
-from pyspark import SparkContext
-from pyspark.streaming import StreamingContext
 import os
-import socket
 import json
 from urllib import request, parse
 
@@ -14,6 +9,7 @@ import logging
 logger = logging.getLogger()
 batch_size = 20000
 sc = SparkContext(appName='Tianchi')
+sc.setCheckpointDir('chkp_dir')
 # ssc = StreamingContext(sc,2)
 sqlContext = sql.SQLContext(sc)
 self_port = os.environ.get("SERVER_PORT")  # for communication between dockers
@@ -213,7 +209,9 @@ def run_client(port):
             # send error traces to backend for further process
             # send_error_traces_to_backend(error_span_dict)
             prev_rdd = df_span
-            # curr_list = []
+            curr_list = []
+            prev_rdd.cache()
+            prev_rdd.checkpoint()
             logger.info("Processed batch num: {}".format(batch_num))
             # if batch_num == 2:
             #
