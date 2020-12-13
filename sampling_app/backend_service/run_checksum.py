@@ -113,7 +113,15 @@ def update_error_dict_with_trace_from_client(data):
                 error_spans[k] = data.get(k)
                 logger.info("Trace {} added.".format(k))
     # logger.info(error_spans)
-    pass
 
-def crosscheck(source_port,data):
-    pass
+def crosscheck(port,error_id_list,batch_num):
+    portb=8000
+    if port == 8000:
+        portb=8001
+    data = {"error_id_list": error_id_list, "batch_num": batch_num}
+    data = json.dumps(data).encode("utf-8")
+    target_url = "http://localhost:"+portb+"/get_duplicate_error_trace"
+    req = request.Request(url=target_url, method='POST', data=data)
+    logger.info("sending error traces id list to get duplicate records")
+    resp = request.urlopen(req)
+    logger.info(resp)

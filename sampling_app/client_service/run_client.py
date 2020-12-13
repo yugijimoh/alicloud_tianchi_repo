@@ -7,7 +7,7 @@ from urllib import request, parse
 import global_var
 # process data streams in multiple threads
 import logging
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 batch_size = 20000
 sc = SparkContext(appName='Tianchi')
@@ -200,8 +200,9 @@ def run_client(port):
             # find out relative spans with same trace id
             # send error traces to backend for further process
             send_error_traces_to_backend(error_span_dict)
+            client_crosscheck_with_backend(keylist,batch_num,port)
             prev_rdd = mapped_stream
-            global_var.rdd_bucket[batch_num] = mapped_stream
+            global_var.rdd_bucket[batch_num] = curr_rdd
             curr_list = []
             logger.info("Processed batch num: {}".format(batch_num))
             # if batch_num == 2:
@@ -223,11 +224,29 @@ def send_error_traces_to_backend(data):
     logger.info(resp)
 
 
-def client_crosscheck_with_backend():
-    target_url = "http://localhost:8002/crosscheck"
-    data = {"a": [1, 2, 3], "b": [4, 5]}
+def client_crosscheck_with_backend(keylist,batchnum,port):
+    target_url = "http://localhost:8002/client_crosscheck_with_backend"
+    # keylist = json.dumps(keylist).encode("utf-8")
+    # batchnum = json.dumps(batchnum).encode("utf-8")
+    data = {"keylist": keylist, "batchnum": batchnum, "port":port}
+    # data = parse.urlencode(data).encode('utf-8')
     data = json.dumps(data).encode("utf-8")
     req = request.Request(url=target_url, method='POST', data=data)
     logger.info("sending error traces")
     resp = request.urlopen(req)
     logger.info(resp)
+
+
+def getduplicate(error_id_list,batch_num):
+
+    duplicate_list = []
+    for id in error_id_list:
+        bucket = global_var.rdd_bucket[batch_num]
+        spans = bucket.filter(lambda x: is_under_trace(x, id))
+        duplicate_list.append(spans)
+
+    target_url = "http://localhost:8002/senderrortrace"
+    data = json.dumps(duplicate_list).encode("utf-8")
+    request.Request(url=target_url, method='POST', data=data)
+    logger.info("sending duplicate error traces")
+
